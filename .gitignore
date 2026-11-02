@@ -1,0 +1,16 @@
+sim/*.log
+sim/*.jou
+sim/*.pb
+sim/*.wdb
+sim/*.backup.*
+sim/xsim.dir/
+sim/regress/
+*.zip
+# Micron model (not redistributable)
+ddr2.v
+ddr2_parameters.vh
+ddr2_module.v
+ddr2_mcp.v
+subtest.vh
+tb.v
+tb.do

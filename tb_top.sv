@@ -105,6 +105,14 @@ module tb_top;
     .odt     (odt)
   );
 
+  // SVA timing checker: watches the command pins between controller and memory.
+  // Armed once initialization is done. Its failures print "ERROR [SVA_*]".
+  ddr2_timing_checker u_chk (
+    .ck(ck), .enable(init_done),
+    .cs_n(cs_n), .ras_n(ras_n), .cas_n(cas_n), .we_n(we_n),
+    .ba(ba), .addr(addr)
+  );
+
   // ---------------- Config and error reporting ----------------
   string test_name = "directed";
   int    seed      = 1;
@@ -282,6 +290,7 @@ module tb_top;
     if (rd_q.size() != 0)
       error("SCB", $sformatf("%0d read(s) never returned data", rd_q.size()));
 
+    n_errors += u_chk.total_fails();
     begin
       int banks = 0;
       foreach (bank_hits[b]) if (bank_hits[b] > 0) banks++;
@@ -290,6 +299,7 @@ module tb_top;
       $display(" writes=%0d reads=%0d checked=%0d errors=%0d", n_wr, n_rd, n_checked, n_errors);
       $display(" coverage: refreshes=%0d refresh_while_request_waiting=%0d banks_hit=%0d/8",
                n_ref, n_ref_while_waiting, banks);
+      u_chk.summary();
       $display(" %s", (n_errors == 0) ? "TEST PASSED" : "TEST FAILED");
       $display("--------------------------------------------");
     end

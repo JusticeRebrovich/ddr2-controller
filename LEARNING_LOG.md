@@ -77,10 +77,42 @@ ddr2_parameters.vh   Micron's timing table (ps), selected by `define sg25E / x16
   2. Which bucket do you debug first, and with which seed? Why?
   3. Why does the directed test pass?
 
+### Step 9: SVA timing checker (`ddr2_timing_checker.sv`, 2026-11-02)
+- Concurrent assertions on the command pins: tRCD, tRP, tRPA, tRAS, tRC, tRRD, tFAW, tRFC, tRTP, tWR, tREFI,
+  plus bank-state rules (ACT to an open bank, READ/WRITE to a closed bank, REFRESH with a bank open).
+- **Limits come from the datasheet in ps, not from `ddr2_pkg.sv`.** The controller uses tRAS = 18 cycles
+  where the datasheet says 40 ns = 16. A checker that reuses the controller's constants would agree with the
+  controller's mistakes.
+- xsim 2020.2 handles `|=>`, `[*N]`, `disable iff`, `generate` loops and `$countones`, enough for all of the above.
+- **A checker that never fires proves nothing.** `tb_checker_selftest.sv` drives illegal command streams into it:
+  at the limit must stay quiet, one cycle early must fire that rule and only that rule (25 cases). Writing the
+  one-cycle-early cases also exposed my own off-by-one in tRFC (the first command is allowed at +79, not +80).
+- tRRD and tFAW can never fail with this closed-page controller. Only the self-test shows they work.
+- New timing fault injections `FI_3` (tRAS), `FI_4` (tRCD), `FI_5` (tRP) are caught by both the SVA checker and
+  Micron's model.
+
+### Step 10: SECDED ECC (`ddr2_ecc.sv`)
+- Extended Hamming (128,120): 7 Hamming check bits at positions 1,2,4..64, an overall parity bit at position 0.
+  A BL8 x16 burst is exactly 128 bits, so 120 data + 8 check bits fits with no extra DRAM lane.
+- The syndrome names the flipped bit; the overall parity tells one error from two. Syndrome 0 with bad parity
+  means the parity bit itself flipped, so the data is untouched.
+- **Exhaustive beats sampled.** The codec test flips every one of 128 bits and every one of 8128 pairs; a random
+  test would take far longer to give the same confidence.
+- **DV lesson:** a SECDED decoder that ignores the overall parity still corrects single errors perfectly, and
+  silently miscorrects double errors. Only a test that injects double errors and checks `dbe` can see it
+  (`FI_ECC_1`).
+- `inj_mask` XORs into the codeword at write time, so the same test runs through the real controller and
+  Micron's model, with the counters cross-checked against the scoreboard.
+
+### Step 11: Regression covers fault builds (`python sim/regress.py --all`)
+- Real designs must pass; every fault build must fail at least one run. This turns "the testbench passes" into
+  "the testbench can fail".
+- **Tool lessons:** `cmd /c` strips the outer quotes of a long quoted command line (wrap the whole line in one more
+  pair); Vivado's `.bat` wrappers split arguments on `=` (quote each argument).
+
 ### What this testbench does NOT cover yet (coverage gaps)
 - Back-to-back requests (req_valid held high continuously)
 - A request arriving on the same cycle refresh becomes pending
 - Write→read to the *same* address with no idle gap
-- Random addresses/data (only 4 hand-picked addresses)
 - Reset in the middle of operation
-- No assertions: the checker only looks at read data, not at the controller's own rules
+- ECC is a separate top, so the main controller testbench does not exercise it, and corrected data is not written back

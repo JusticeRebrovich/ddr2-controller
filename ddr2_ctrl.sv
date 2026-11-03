@@ -128,8 +128,16 @@ module ddr2_ctrl
               s_cmd    <= CMD_ACT;
               s_ba     <= u_ba;
               s_addr   <= u_row;
+`ifdef FI_4   // timing fault injection: READ/WRITE too soon after ACT (tRCD)
+              wait_cnt <= 8'(T_RCD - 3);
+`else
               wait_cnt <= 8'(T_RCD - 1);
+`endif
+`ifdef FI_3   // timing fault injection: PRECHARGE too soon after ACT (tRAS)
+              tras_cnt <= 8'(8);
+`else
               tras_cnt <= 8'(T_RAS - 1);
+`endif
               trc_cnt  <= 8'(T_RC - 1);
               state    <= S_COL;
             end
@@ -158,7 +166,11 @@ module ddr2_ctrl
             s_cmd    <= CMD_PRE;
             s_ba     <= cur_ba;
             s_addr   <= '0;                                   // A10 = 0, this bank only
+`ifdef FI_5   // timing fault injection: ACT too soon after PRECHARGE (tRP)
+            wait_cnt <= 8'(T_RP - 3);
+`else
             wait_cnt <= 8'(T_RP - 1);
+`endif
             state    <= S_IDLE;
           end
           default: state <= S_IDLE;

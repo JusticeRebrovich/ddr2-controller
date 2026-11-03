@@ -14,3 +14,5 @@ ddr2_mcp.v
 subtest.vh
 tb.v
 tb.do
+sim/*.txt
+sim/*.err

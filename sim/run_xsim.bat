@@ -17,7 +17,7 @@ set DEFS=-d sg25E -d x16
 REM 1. Compile. Package first, because every other file imports ddr2_pkg.
 call %VIV%\xvlog.bat -sv %DEFS% -i %SRC% ^
   %SRC%\ddr2_pkg.sv %SRC%\ddr2_init.sv %SRC%\ddr2_ctrl.sv ^
-  %SRC%\ddr2_phy.sv %SRC%\ddr2_top.sv %SRC%\tb_top.sv || goto :fail
+  %SRC%\ddr2_phy.sv %SRC%\ddr2_top.sv %SRC%\ddr2_timing_checker.sv %SRC%\tb_top.sv || goto :fail
 call %VIV%\xvlog.bat %DEFS% -i %SRC% %SRC%\ddr2.v || goto :fail
 
 REM 2. Elaborate. -debug typical keeps signal visibility for waveforms.
